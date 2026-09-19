@@ -1,1 +1,10 @@
-{}
+{
+  "T3AXXW0PPJ3R": {
+    "expiry": "2026-09-21",
+    "active": true,
+    "device": null,
+    "devices": [],
+    "max_devices": 100,
+    "created": "2026-09-19T19:01:24.703176"
+  }
+}
