@@ -9,9 +9,6 @@ on:
   repository_dispatch:
     types: [keep-alive]
 
-concurrency:
-  group: bot-running
-  cancel-in-progress: false
 
 jobs:
   run-bot:
