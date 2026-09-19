@@ -1,68 +1,30 @@
-name: Hosting Bot 24/7 - Ultra Stable
-
-on:
-  push:
-    branches: [ main ]
-  schedule:
-    - cron: '*/5 * * * *'  # كل 5 دقائق
-  workflow_dispatch:
-  repository_dispatch:
-    types: [keep-alive]
-
-concurrency:
-  group: bot-running
-  cancel-in-progress: false
-
-jobs:
-  run-bot:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      actions: write
-
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
-          cache: 'pip'
-
-      - name: Install Dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install --no-cache-dir flask python-telegram-bot psutil requests aiohttp pyTelegramBotAPI telethon
-          if [ -f requirements.txt ]; then 
-            pip install --no-cache-dir -r requirements.txt
-          fi
-
-      - name: Kill Old Processes
-        run: |
-          pkill -f "python.*main.py" || true
-          pkill -f "flask" || true
-          sleep 2
-
       - name: Run Bot with Auto-Restart
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PORT: 8080
           PYTHONUNBUFFERED: 1
         run: |
-          # 🛠️ الحل الجذري لمشكلة المسار والمجلد المزدوج
-          cd $GITHUB_WORKSPACE
-          if [ -d "ELMASRY-" ]; then
+          # طباعة مسار ومحتويات المجلد الحالي للتحقق
+          echo "Current directory: $(pwd)"
+          ls -la
+          
+          # إذا كان الملف موجوداً في مجلد فرعي، انتقل إليه
+          if [ -f "main.py" ]; then
+            PYTHON_FILE="main.py"
+          elif [ -f "./ELMASRY-/main.py" ]; then
             cd ELMASRY-
+            PYTHON_FILE="main.py"
+          else
+            # البحث التلقائي عن مكان ملف main.py وتشغيله
+            FOUND_PATH=$(find . -name "main.py" | head -n 1)
+            if [ -n "$FOUND_PATH" ]; then
+              DIR_NAME=$(dirname "$FOUND_PATH")
+              cd "$DIR_NAME"
+            fi
           fi
           
-          # تشغيل البوت مع إعادة تشغيل تلقائي عند أي خطأ
           while true; do
             echo "🚀 Starting bot at $(date)"
-            
             python main.py &
             BOT_PID=$!
             
@@ -80,49 +42,4 @@ jobs:
             echo "🔄 Restarting in 5 seconds..."
             sleep 5
           done
-
-      - name: Auto-Sync Data with Retry
-        if: always()
-        run: |
-          cd $GITHUB_WORKSPACE
-          if [ -d "ELMASRY-" ]; then
-            cd ELMASRY-
-          fi
-          
-          for i in {1..5}; do
-            echo "🔄 Sync attempt $i/5"
-            git config --global user.name "GitHub Action"
-            git config --global user.email "action@github.com"
-            
-            mkdir -p hosted_projects
-            git add hosted_projects/ || true
-            
-            if git commit -m "Auto-sync $(date +'%Y-%m-%d %H:%M:%S')" || git commit -m "Auto-sync"; then
-              echo "✅ Commit successful"
-              if git push origin main; then
-                echo "✅ Push successful"
-                break
-              else
-                echo "⚠️ Push failed, retrying..."
-                sleep 3
-                git pull --rebase origin main || true
-              fi
-            else
-              echo "ℹ️ No changes to commit"
-              break
-            fi
-            sleep 2
-          done
-
-      - name: Keep-Alive Trigger
-        if: always()
-        run: |
-          echo "🔄 Keep-alive signal sent at $(date)"
-
-      - name: Cleanup
-        if: always()
-        run: |
-          rm -rf /tmp/*.lock || true
-          rm -rf /tmp/*.pid || true
-          echo "🧹 Cleanup completed"
 
