@@ -53,8 +53,11 @@ jobs:
           PORT: 8080
           PYTHONUNBUFFERED: 1
         run: |
-          # 🛠️ حل مشكلة المسار: التأكد من الوقوف في المجلد الصحيح للمشروع
+          # 🛠️ الحل الجذري لمشكلة المسار والمجلد المزدوج
           cd $GITHUB_WORKSPACE
+          if [ -d "ELMASRY-" ]; then
+            cd ELMASRY-
+          fi
           
           # تشغيل البوت مع إعادة تشغيل تلقائي عند أي خطأ
           while true; do
@@ -82,6 +85,10 @@ jobs:
         if: always()
         run: |
           cd $GITHUB_WORKSPACE
+          if [ -d "ELMASRY-" ]; then
+            cd ELMASRY-
+          fi
+          
           for i in {1..5}; do
             echo "🔄 Sync attempt $i/5"
             git config --global user.name "GitHub Action"
@@ -118,3 +125,4 @@ jobs:
           rm -rf /tmp/*.lock || true
           rm -rf /tmp/*.pid || true
           echo "🧹 Cleanup completed"
+
