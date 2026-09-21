@@ -4,10 +4,8 @@ on:
   push:
     branches: [ main ]
   schedule:
-    - cron: '*/5 * * * *'  # يعمل تلقائياً كل 5 دقائق لمنع توقف الـ Actions
+    - cron: '*/5 * * * *'
   workflow_dispatch:
-  repository_dispatch:
-    types: [keep-alive]
 
 concurrency:
   group: bot-running
@@ -37,24 +35,8 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install --no-cache-dir flask python-telegram-bot psutil requests aiohttp httpx waitress
-          if [ -f requirements.txt ]; then 
-            pip install --no-cache-dir -r requirements.txt
-          fi
 
-      - name: Kill Old Processes (إيقاف أي عملية قديمة أو معلقة بالكامل)
-        run: |
-          echo "🛑 Stopping any old running bot, python, or flask processes..."
-          pkill -f "python.*main.py" || true
-          pkill -f "main.py" || true
-          pkill -f "flask" || true
-          pkill -f "waitress" || true
-          fuser -k 8080/tcp || true
-          fuser -k 5000/tcp || true
-          killall -9 python python3 2>/dev/null || true
-          sleep 3
-          echo "✨ All old processes cleared successfully and ports freed."
-
-      - name: Run Bot with Auto-Restart (تشغيل النسخة الجديدة بنظام مراقبة ذكي)
+      - name: Run Bot Directly
         env:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
           ADMIN_IDS: ${{ secrets.ADMIN_IDS }}
@@ -62,65 +44,5 @@ jobs:
           PORT: 8080
           PYTHONUNBUFFERED: 1
         run: |
-          while true; do
-            echo "🚀 Starting new bot instance at $(date)"
-            
-            python main.py &
-            BOT_PID=$!
-            
-            COUNTER=0
-            while kill -0 $BOT_PID 2>/dev/null; do
-              sleep 10
-              COUNTER=$((COUNTER + 1))
-              
-              if [ $((COUNTER % 30)) -eq 0 ]; then
-                echo "💓 Bot is alive and running - Cycle: $COUNTER"
-              fi
-            done
-            
-            echo "⚠️ Bot stopped or crashed at $(date) with exit code: $?"
-            echo "🔄 Restarting in 5 seconds..."
-            sleep 5
-          done
-
-      - name: Auto-Sync Data with Retry
-        if: always()
-        run: |
-          for i in {1..5}; do
-            echo "🔄 Sync attempt $i/5"
-            
-            git config --global user.name "GitHub Action"
-            git config --global user.email "action@github.com"
-            
-            git add keylist.json stats.json login_log.json devices.json moderators.json 2>/dev/null || true
-            
-            if git commit -m "Auto-sync $(date +'%Y-%m-%d %H:%M:%S')" || git commit -m "Auto-sync"; then
-              echo "✅ Commit successful"
-              if git push origin main; then
-                echo "✅ Push successful"
-                break
-              else
-                echo "⚠️ Push failed, retrying..."
-                sleep 3
-                git pull --rebase origin main || true
-              fi
-            else
-              echo "ℹ️ No changes to commit"
-              break
-            fi
-            
-            sleep 2
-          done
-
-      - name: Keep-Alive Trigger
-        if: always()
-        run: |
-          echo "🔄 Keep-alive signal sent at $(date) - Keeping action awake 24/7"
-
-      - name: Cleanup
-        if: always()
-        run: |
-          rm -rf /tmp/*.lock || true
-          rm -rf /tmp/*.pid || true
-          echo "🧹 Cleanup completed successfully"
+          python main.py
 
