@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main ]
   schedule:
-    - cron: '*/5 * * * *'  # كل 5 دقائق
+    - cron: '*/5 * * * *'  # يعمل تلقائياً كل 5 دقائق لمنع توقف الـ Actions
   workflow_dispatch:
   repository_dispatch:
     types: [keep-alive]
@@ -41,22 +41,25 @@ jobs:
             pip install --no-cache-dir -r requirements.txt
           fi
 
-      - name: Kill Old Processes (إيقاف أي شيء قديم شغّال)
+      - name: Kill Old Processes (إيقاف أي عملية قديمة أو معلقة بالكامل)
         run: |
-          echo "🛑 Stopping any old running bot or flask processes..."
+          echo "🛑 Stopping any old running bot, python, or flask processes..."
           pkill -f "python.*main.py" || true
+          pkill -f "main.py" || true
           pkill -f "flask" || true
           pkill -f "waitress" || true
+          fuser -k 8080/tcp || true
           fuser -k 5000/tcp || true
+          killall -9 python python3 2>/dev/null || true
           sleep 3
-          echo "✨ All old processes cleared successfully."
+          echo "✨ All old processes cleared successfully and ports freed."
 
-      - name: Run Bot with Auto-Restart (تشغيل النسخة الجديدة)
+      - name: Run Bot with Auto-Restart (تشغيل النسخة الجديدة بنظام مراقبة ذكي)
         env:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
           ADMIN_IDS: ${{ secrets.ADMIN_IDS }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PORT: 5000
+          PORT: 8080
           PYTHONUNBUFFERED: 1
         run: |
           while true; do
@@ -71,11 +74,11 @@ jobs:
               COUNTER=$((COUNTER + 1))
               
               if [ $((COUNTER % 30)) -eq 0 ]; then
-                echo "💓 Bot is alive - $COUNTER/30 cycles"
+                echo "💓 Bot is alive and running - Cycle: $COUNTER"
               fi
             done
             
-            echo "⚠️ Bot stopped at $(date) with exit code: $?"
+            echo "⚠️ Bot stopped or crashed at $(date) with exit code: $?"
             echo "🔄 Restarting in 5 seconds..."
             sleep 5
           done
@@ -112,12 +115,12 @@ jobs:
       - name: Keep-Alive Trigger
         if: always()
         run: |
-          echo "🔄 Keep-alive signal sent at $(date)"
+          echo "🔄 Keep-alive signal sent at $(date) - Keeping action awake 24/7"
 
       - name: Cleanup
         if: always()
         run: |
           rm -rf /tmp/*.lock || true
           rm -rf /tmp/*.pid || true
-          echo "🧹 Cleanup completed"
+          echo "🧹 Cleanup completed successfully"
 
