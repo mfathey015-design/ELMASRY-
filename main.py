@@ -1,4 +1,5 @@
 
+
 # 🔐 Protected by ELMASRY VIP V8
 import zlib,base64,binascii
 try:
@@ -10,8 +11,3 @@ try:
     exec(zlib.decompress(_d).decode('utf-8'), globals())
 except Exception:
     pass
-
-
-
-
-
