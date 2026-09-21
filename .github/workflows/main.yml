@@ -41,20 +41,26 @@ jobs:
             pip install --no-cache-dir -r requirements.txt
           fi
 
-      - name: Kill Old Processes
+      - name: Kill Old Processes (إيقاف أي شيء قديم شغّال)
         run: |
+          echo "🛑 Stopping any old running bot or flask processes..."
           pkill -f "python.*main.py" || true
           pkill -f "flask" || true
-          sleep 2
+          pkill -f "waitress" || true
+          fuser -k 5000/tcp || true
+          sleep 3
+          echo "✨ All old processes cleared successfully."
 
-      - name: Run Bot with Auto-Restart
+      - name: Run Bot with Auto-Restart (تشغيل النسخة الجديدة)
         env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          ADMIN_IDS: ${{ secrets.ADMIN_IDS }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PORT: 8080
+          PORT: 5000
           PYTHONUNBUFFERED: 1
         run: |
           while true; do
-            echo "🚀 Starting bot at $(date)"
+            echo "🚀 Starting new bot instance at $(date)"
             
             python main.py &
             BOT_PID=$!
